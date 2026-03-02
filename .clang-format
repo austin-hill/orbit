@@ -1,0 +1,9 @@
+﻿---
+BasedOnStyle: Microsoft
+PointerAlignment: Left
+IndentWidth: '2'
+AlignArrayOfStructures: Right
+ColumnLimit: 250
+AlwaysBreakTemplateDeclarations: true
+
+...
