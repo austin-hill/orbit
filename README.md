@@ -7,9 +7,14 @@ This is a high performance lock-free multi-producer multi-consumer bounded queue
 There are a number of existing lock-free queue implementations in C++ at this point. Why should you use this one?
 
 - It is [faster](#benchmarks) than other implementations in most cases
-- There are no restrictions on element type
+- There are no arbitrary restrictions on element type: The only limitations in place are by choice, to enforce effective usage.
+    - Elements must be default constructible. They are stored contiguously in a `std::array`. If your type doesn't have a default constructor, you should probably be wrapping it in a unique pointer anyway.
+    - For non-trivially copyable types of size greater than 16 bytes, all operations are move-only. Again, if your type doesn't work with this, you should be wrapping it in a unique pointer.
 - Offers a simple and versatile interface
-- Easily tunable and configurable for your platform and use case
+    - Offers both blocking (`push`/`pop`) and non-blocking (`try_push`/`try_pop`) operations - with _no meaningful performance difference_. Use whichever suits your use case.
+    - Has functions `was_empty` and `was_full` which have _well-defined_ behaviour - chosen to not allow false positives.
+    - Also offers a `was_size` function - a useful approximate estimate, especially when debugging or testing!
+- Easily tunable and configurable for your platform and use case. See [below](#tuning-the-queue-for-your-platform) for more information on this.
 
 More precisely, in terms of performance figures, you should consider using this queue in the following circumstances:
 
@@ -85,7 +90,14 @@ For the second benchmark, each consumer simply pops a fixed number of elements (
 
 ## Tuning the queue for your platform
 
-Depending on your CPU architecture, your spin pause length may differ significantly. If you want the maximum performance, you may wish to benchmark using `benchmarks/test_latency.cpp` or `benchmarks/test_throughput.cpp` to choose optimum pause lengths. These will generate graphs like the below.
+Depending on your CPU architecture, your spin pause length may differ significantly. Based on limited testing, the following choices may work well for x86 processors:
+
+  - PAUSE_SHORT = 180 / NUM_CYCLES_PER_PAUSE
+  - PAUSE_LONG = 3000 / NUM_CYCLES_PER_PAUSE (only used when maximising throughput)
+
+Where NUM_CYCLES_PER_PAUSE is dependent on the target CPU - on modern AMD/Intel CPUs it is likely around the range of 30-150 clock cycles, but may be shorter on some older models.
+
+If you want the maximum performance, you may wish to benchmark using `benchmarks/test_latency.cpp` or `benchmarks/test_throughput.cpp` to choose optimum pause lengths. These will generate graphs like the below.
 
 ![pause length latency](./benchmarks/plots/pause_lengths/latency.png)
 

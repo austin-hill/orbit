@@ -8,17 +8,17 @@
 #include <type_traits>
 
 #if defined(__GNUC__) || defined(__clang__)
-#define force_inline inline __attribute__((always_inline))
+#define CIRCULAR_QUEUE_FORCE_INLINE inline __attribute__((always_inline))
 #else
-#define force_inline __forceinline
+#define CIRCULAR_QUEUE_FORCE_INLINE __forceinline
 #endif
 
-#define force_inline inline __attribute__((always_inline))
+#define CIRCULAR_QUEUE_FORCE_INLINE inline __attribute__((always_inline))
 
 namespace lockfree_utils
 {
 template <auto Start, auto End, typename F>
-force_inline constexpr void constexpr_for(F&& f)
+CIRCULAR_QUEUE_FORCE_INLINE constexpr void constexpr_for(F&& f) noexcept
 {
   if constexpr (Start < End)
   {
@@ -33,7 +33,7 @@ force_inline constexpr void constexpr_for(F&& f)
 namespace lockfree
 {
 template <size_t NUM_PAUSES = 3>
-force_inline void spin_pause()
+CIRCULAR_QUEUE_FORCE_INLINE void spin_pause() noexcept
 {
 
   lockfree_utils::constexpr_for<0, NUM_PAUSES>(_mm_pause);
@@ -43,7 +43,7 @@ force_inline void spin_pause()
 namespace lockfree
 {
 template <size_t NUM_PAUSES = 3>
-force_inline void spin_pause()
+CIRCULAR_QUEUE_FORCE_INLINE void spin_pause() noexcept
 {
 
   lockfree_utils::constexpr_for<0, NUM_PAUSES>(__yield);
@@ -54,7 +54,7 @@ force_inline void spin_pause()
 namespace lockfree_utils
 {
 template <auto Start, auto End>
-force_inline constexpr void repeat_nop()
+CIRCULAR_QUEUE_FORCE_INLINE constexpr void repeat_nop() noexcept
 {
   if constexpr (Start < End)
   {
@@ -67,7 +67,7 @@ force_inline constexpr void repeat_nop()
 namespace lockfree
 {
 template <size_t NUM_PAUSES = 100>
-force_inline void spin_pause()
+CIRCULAR_QUEUE_FORCE_INLINE void spin_pause() noexcept
 {
   lockfree_utils::repeat_nop<0, NUM_PAUSES>();
 }
@@ -110,11 +110,11 @@ Based on testing, sensible choices for x86 processors might be the following:
 Where NUM_CYCLES_PER_PAUSE is dependent on the target CPU - on modern AMD/Intel CPUs it is likely around the range of 30-150 clock cycles, but may be shorter on some older models.
 */
 template <typename T, size_t SIZE, bool MINIMISE_LATENCY = true, bool NONBLOCKING = true, size_t PAUSE_SHORT = 3, size_t PAUSE_LONG = 40>
-  requires power_of_two<SIZE> && copyable_or_nothrow_move_assignable<T>
+  requires power_of_two<SIZE> && std::is_default_constructible_v<T> && copyable_or_nothrow_move_assignable<T>
 class circular_queue
 {
 public:
-  circular_queue()
+  circular_queue() noexcept(std::is_nothrow_default_constructible_v<T>)
   {
     _front.store(0);
     _back.store(0);
@@ -126,7 +126,7 @@ public:
   }
 
   // May return false negative, but not false positive.
-  bool was_empty()
+  bool was_empty() noexcept
   {
     uint64_t prev_front = _front.load(std::memory_order_acquire); // Ensure prev_back is loaded AFTER this
     uint64_t prev_back = _back.load(std::memory_order_relaxed);
@@ -135,7 +135,7 @@ public:
   }
 
   // May return false negative, but not false positive.
-  bool was_full()
+  bool was_full() noexcept
   {
     uint64_t prev_back = _back.load(std::memory_order_acquire); // Ensure prev_front is loaded AFTER this
     uint64_t prev_front = _front.load(std::memory_order_relaxed);
@@ -144,7 +144,7 @@ public:
   }
 
   // May be useful for debug, but obviously not always accurate
-  size_t was_size()
+  size_t was_size() noexcept
   {
     return std::clamp(static_cast<size_t>(_back.load(std::memory_order_relaxed) - _front.load(std::memory_order_relaxed)), static_cast<size_t>(0), SIZE);
   }
@@ -152,7 +152,7 @@ public:
   /*
   @param element Pushes an element to queue (move only for non-trivially constructable types of size > 16 bytes). Busy waits if queue is full.
   */
-  void push(std::conditional_t<copyable<T>, T, T&&> element)
+  void push(std::conditional_t<copyable<T>, T, T&&> element) noexcept
   {
     do_push<false>(std::forward<T>(element));
   }
@@ -161,7 +161,7 @@ public:
   @param element Tries to push an element to queue (move only for non-trivially constructable types of size > 16 bytes).
   @returns true if the queue was not full (and so the element was pushed), otherwise false.
   */
-  bool try_push(std::conditional_t<copyable<T>, T, T&&> element)
+  bool try_push(std::conditional_t<copyable<T>, T, T&&> element) noexcept
   {
     return do_push<true>(std::forward<T>(element));
   }
@@ -170,7 +170,7 @@ public:
   Pops an element from the queue. Busy waits if queue is empty.
   @returns the element.
   */
-  T pop()
+  T pop() noexcept
   {
     T value;
     do_pop<false>(value);
@@ -181,7 +181,7 @@ public:
   @param result Tries pop an element from the queue into result.
   @returns true if the queue was not empty (and so the element was popped), otherwise false.
   */
-  bool try_pop(T& result)
+  bool try_pop(T& result) noexcept
   {
     return do_pop<true>(result);
   };
@@ -198,7 +198,7 @@ private:
   */
 
   template <bool return_if_full>
-  force_inline bool do_push(std::conditional_t<copyable<T>, T, T&&> element)
+  CIRCULAR_QUEUE_FORCE_INLINE bool do_push(std::conditional_t<copyable<T>, T, T&&> element) noexcept
   {
     while (true)
     {
@@ -268,7 +268,7 @@ private:
   }
 
   template <bool return_if_empty>
-  force_inline bool do_pop(T& result)
+  CIRCULAR_QUEUE_FORCE_INLINE bool do_pop(T& result) noexcept
   {
     while (true)
     {
@@ -336,7 +336,7 @@ private:
     }
   };
 
-  force_inline void do_spin_pause()
+  CIRCULAR_QUEUE_FORCE_INLINE void do_spin_pause() noexcept
   {
     if constexpr (MINIMISE_LATENCY)
     {
