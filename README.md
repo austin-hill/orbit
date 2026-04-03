@@ -37,8 +37,8 @@ We provide the following public methods (note `T/T&&` indicates that it accepts 
 - `T pop()` Pop an element from the queue and return it, and busy wait if it is empty.
 - `bool try_push(T/T&& element)` Push an element to the queue and return true if it is not full, otherwise return false.
 - `bool try_pop(T& element)` Pop an element from the queue and return true if it is not empty, otherwise return false.
-- `bool was_empty()` Queue was empty when checked. May return a false negative, but not a false positive.
-- `bool was_full()` Queue was full when checked. May return a false negative, but not a false positive.
+- `bool was_empty()` Queue was empty when checked. On x86, may return a false negative, but not a false positive. On ARM, both are possible (as it would add cost to give this guarantee here).
+- `bool was_full()` Queue was full when checked. Same caveats as `was_full()`.
 - `size_t was_size()` Approximate size of the queue, only really useful for debug purposes.
 
 Note that the size of the queue must be a power of two - using a different size will produce a compilation error. Furthermore, for non-trivially copyable types, and any type of size greater than 16 bytes, the queue is move-only. Finally, if you use the `try_push`/`try_pop` functions in a spin loop, you do not need to add a spin pause as this is built in and tuned for optimum performance already. Note that there is no measurable performance hit from using these methods, unlike some [other implementations](#throughput)!
@@ -74,7 +74,7 @@ Note, we do not recommend using the queue in throughput mode if you care about l
 
 Here, we simply push 1000000 integers through the queue for varying numbers of producers and consumers, and measure the time taken. We offer two benchmarks here.
 
-The first uses the common "push" and "try_pop" pattern - consumer threads will monitor for cancellation, and clear out the queue before exiting. Note that many existing implementation struggle with this: `atomic_queue` suffers a huge performance hit when using `try_pop`, and `ramalhete_queue` does not offer any method to determine whether the queue is empty (or the current size), whilst other queues that did provide these methods did not offer guarantees of over or underestimation (so false positive `empty` results were allowed, for example).
+The first uses the common "push" and "try_pop" pattern - consumer threads will monitor for cancellation, and clear out the queue before exiting. Note that many existing implementation struggle with this: `atomic_queue` suffers a huge performance hit when using `try_pop`, and `ramalhete_queue` does not offer any method to determine whether the queue is empty (or the current size), whilst other queues that did provide these methods did not offer guarantees of over or underestimation (so false positive `empty` results were allowed, for example). On x86, our queue has none of these limitations! This is thanks to the stronger memory model on x86 (Total Store Order) giving us automatic ordering guarantees - allowing us to check `was_empty` without the possibility of a false positive. On ARM, it would add some additional cost to the `push`/`pop` to enforce this, so we choose to relax this restriction here.
 
 ![throughput comparison 1 5600X](./benchmarks/plots/comparison/throughput_5600x.png)
 *AMD Ryzen 5600X*

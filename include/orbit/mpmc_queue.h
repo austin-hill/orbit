@@ -140,7 +140,7 @@ public:
     uint64_t prev_front = _front.load(std::memory_order_acquire); // Ensure prev_back is loaded AFTER this
     uint64_t prev_back = _back.load(std::memory_order_acquire);
 
-    return prev_back == prev_front;
+    return prev_back <= prev_front;
   }
 
   // On x86: May return false negative, but not false positive. On ARM: No formal guarantees
@@ -149,7 +149,7 @@ public:
     uint64_t prev_back = _back.load(std::memory_order_acquire); // Ensure prev_front is loaded AFTER this
     uint64_t prev_front = _front.load(std::memory_order_acquire);
 
-    return prev_back == prev_front + SIZE;
+    return prev_back >= prev_front + SIZE;
   }
 
   // May be useful for debug, but obviously not always accurate
