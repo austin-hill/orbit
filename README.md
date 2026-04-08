@@ -136,6 +136,8 @@ Depending on your CPU architecture, your spin pause length may differ significan
 
 Where NUM_CYCLES_PER_PAUSE is dependent on the target CPU - on modern AMD/Intel CPUs it is likely around the range of 30-150 clock cycles, but may be shorter on some older models.
 
+For non x86 users, if your CPU is ARMv7 or above, NUM_CYCLES_PER_PAUSE is instead the number of cycles a single ISB instruction takes, i.e. how long a pipeline refill takes. If your CPU is ARM and very old, or some other architecture, these parameters may not help much, as they encode either YIELD or NOP instructions in this case.
+
 If you want the maximum performance, you may wish to benchmark using `benchmarks/test_latency.cpp` or `benchmarks/test_throughput.cpp` to choose optimum pause lengths. These will generate graphs like the below.
 
 ![pause length latency](./benchmarks/plots/pause_lengths/latency.png)
