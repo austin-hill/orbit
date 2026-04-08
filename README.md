@@ -56,7 +56,7 @@ if (q.try_pop(result)) { ... }
 
 ## Benchmarks
 
-We provide a selection of benchmarks to compare against existing implementations. All benchmarks were run on an AMD Ryzen 5600X. We show a few different configurations of our queue: Optimised for latency or throughput, and truly lock-free or the faster version described above. We colour our queue optimised for latency in yellow, throughput in red, and more aggressively optimised for throughput in black. Note that the queues in grey are _SPSC-only_, and `atomic_queue` is marked hatched as it only supports atomic types, not strings, structs, unique pointers etc.
+We provide a selection of benchmarks to compare against existing implementations. Benchmarks were run on both x86 (AMD Ryzen 5600X) and ARM (Apple M2 Pro). We show a few different configurations of our queue: Optimised for latency or throughput, and truly lock-free or the faster version described above. We colour our queue optimised for latency in yellow, throughput in red, and more aggressively optimised for throughput in black. Note that the queues in grey are _SPSC-only_, and `atomic_queue` is marked hatched as it only supports atomic types, not strings, structs, unique pointers etc.
 
 ### Latency
 
